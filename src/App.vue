@@ -61,7 +61,7 @@
           fab
           small
           class="config-button"
-          @click="openCredentialDialog"
+          @click="handleConfigClick"
         >
           <v-icon small>mdi-cog</v-icon>
         </v-btn>
@@ -72,6 +72,15 @@
               <p class="mb-4">
                 Enter the display token and secret generated in HostSync for this property.
               </p>
+              <v-alert
+                v-if="hasStoredCredentials"
+                type="info"
+                dense
+                outlined
+                class="mb-4"
+              >
+                Saved display credentials are in use. Enter new values below to rotate them.
+              </v-alert>
               <v-text-field
                 v-model="credentialsForm.token"
                 label="Display Token"
@@ -114,6 +123,55 @@
                 @click="saveCredentials"
               >
                 Save &amp; Connect
+              </v-btn>
+            </v-card-actions>
+          </v-card>
+        </v-dialog>
+        <v-dialog v-model="adminDialog" max-width="420">
+          <v-card>
+            <v-card-title class="headline">
+              <v-icon left color="primary">mdi-shield-account</v-icon>
+              Admin Access Required
+            </v-card-title>
+            <v-divider></v-divider>
+            <v-card-text class="pt-6">
+              <p class="mb-4">
+                Sign in with your HostSync administrator credentials to manage this display.
+              </p>
+              <v-text-field
+                v-model="adminForm.email"
+                label="Email"
+                outlined
+                type="email"
+                required
+                autocomplete="username"
+                hide-details="auto"
+              ></v-text-field>
+              <v-text-field
+                v-model="adminForm.password"
+                label="Password"
+                outlined
+                :type="adminPasswordVisible ? 'text' : 'password'"
+                :append-icon="adminPasswordVisible ? 'mdi-eye-off' : 'mdi-eye'"
+                @click:append="adminPasswordVisible = !adminPasswordVisible"
+                required
+                autocomplete="current-password"
+                hide-details="auto"
+              ></v-text-field>
+              <v-alert
+                v-if="adminError"
+                type="error"
+                dense
+                class="mt-3"
+              >
+                {{ adminError }}
+              </v-alert>
+            </v-card-text>
+            <v-card-actions>
+              <v-spacer></v-spacer>
+              <v-btn text @click="closeAdminDialog" :disabled="adminLoading">Cancel</v-btn>
+              <v-btn color="primary" :loading="adminLoading" @click="authenticateAdmin">
+                Sign In
               </v-btn>
             </v-card-actions>
           </v-card>
@@ -178,7 +236,7 @@ export default {
       },
       credentialsError: '',
       backgroundImage: '',
-      defaultBackgroundImage: 'https://images.unsplash.com/photo-1470246973918-29a93221c455?auto=format&fit=crop&w=2000&q=80'
+      defaultBackgroundImage: 'https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=2000&q=80'
     }
   },
   computed: {
@@ -380,11 +438,6 @@ export default {
 
       try {
         const propertyResponse = await api.getPropertyData()
-        const wifiResponse = await api.getWiFiQR().catch(err => {
-          console.error('Failed to load WiFi QR code:', err)
-          return null
-        })
-
         const propertyPayload = propertyResponse?.property ? propertyResponse : { property: propertyResponse }
 
         this.property = propertyPayload.property || null
@@ -393,7 +446,16 @@ export default {
         this.checkoutPolicies = propertyPayload.checkout_policies || []
         this.propertyRules = propertyPayload.property_rules || []
         this.updateBackgroundFromProperty(this.property)
-        const wifiCode = this.normalizeWifiResponse(wifiResponse) || this.extractWifiFromProperty(propertyPayload)
+
+        let wifiCode = this.extractWifiFromProperty(propertyPayload)
+        if (!wifiCode) {
+          const wifiResponse = await api.getWiFiQR().catch(err => {
+            console.error('Failed to load WiFi QR code:', err)
+            return null
+          })
+          wifiCode = this.normalizeWifiResponse(wifiResponse)
+        }
+
         this.wifiQR = wifiCode || null
 
         this.loading = false
