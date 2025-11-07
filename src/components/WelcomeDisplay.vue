@@ -219,9 +219,28 @@ const API_CONFIGURED = Boolean(process.env.VUE_APP_API_URL)
 
 const normalizeQr = (value) => {
   if (!value) return null
-  if (typeof value === 'string') return value
+  if (typeof value === 'string') return value.trim()
   if (typeof value === 'object') {
-    return value.qr_code || value.url || value.src || null
+    const candidateKeys = [
+      'qr_code',
+      'wifi_qr',
+      'wifiQr',
+      'url',
+      'href',
+      'src',
+      'image',
+      'image_url',
+      'imageUrl',
+      'data',
+      'base64',
+      'qr'
+    ]
+
+    for (const key of candidateKeys) {
+      if (value[key]) {
+        return String(value[key]).trim()
+      }
+    }
   }
   return null
 }

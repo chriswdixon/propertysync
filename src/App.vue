@@ -1,6 +1,6 @@
 <template>
   <v-app>
-    <v-main class="display-main">
+    <v-main class="display-main" :style="displayBackgroundStyle">
       <v-container v-if="loading" fluid class="fill-height">
         <v-row align="center" justify="center" class="fill-height">
           <v-col cols="12" class="text-center">
@@ -176,7 +176,9 @@ export default {
         token: '',
         secret: ''
       },
-      credentialsError: ''
+      credentialsError: '',
+      backgroundImage: '',
+      defaultBackgroundImage: 'https://images.unsplash.com/photo-1470246973918-29a93221c455?auto=format&fit=crop&w=2000&q=80'
     }
   },
   computed: {
@@ -206,10 +208,17 @@ export default {
     },
     errorDetails () {
       return this.error && this.error.details ? this.error.details : ''
+    },
+    displayBackgroundStyle () {
+      const image = this.backgroundImage || this.defaultBackgroundImage
+      return {
+        '--display-background-image': `url('${image}')`
+      }
     }
   },
   mounted () {
     this.bootstrapCredentials()
+    this.resetBackgroundImage()
     this.initializeDisplay()
   },
   methods: {
@@ -383,11 +392,9 @@ export default {
         this.guestName = this.booking ? (this.booking.guest_name || '') : ''
         this.checkoutPolicies = propertyPayload.checkout_policies || []
         this.propertyRules = propertyPayload.property_rules || []
-        if (wifiResponse) {
-          this.wifiQR = wifiResponse.qr_code || wifiResponse.url || wifiResponse
-        } else {
-          this.wifiQR = null
-        }
+        this.updateBackgroundFromProperty(this.property)
+        const wifiCode = this.normalizeWifiResponse(wifiResponse) || this.extractWifiFromProperty(propertyPayload)
+        this.wifiQR = wifiCode || null
 
         this.loading = false
         this.error = null
@@ -418,6 +425,7 @@ export default {
       this.loading = false
       this.fallbackActive = true
       this.error = errorInfo
+      this.resetBackgroundImage()
       this.teardownWebsocket()
 
       if (errorInfo && ['MISSING_DISPLAY_CREDENTIALS', 'INVALID_DISPLAY_CREDENTIALS'].includes(errorInfo.code)) {
@@ -439,6 +447,180 @@ export default {
       if (this.wsConfigured) {
         this.$ws.disconnect()
       }
+    },
+    resetBackgroundImage () {
+      this.backgroundImage = this.defaultBackgroundImage
+    },
+    updateBackgroundFromProperty (property) {
+      const candidate = this.extractPropertyImage(property)
+      this.backgroundImage = candidate || this.defaultBackgroundImage
+    },
+    extractPropertyImage (property) {
+      if (!property || typeof property !== 'object') {
+        return ''
+      }
+
+      const directKeys = [
+        'display_background_image_url',
+        'displayBackgroundImageUrl',
+        'display_background_image',
+        'displayBackgroundImage',
+        'hero_image_url',
+        'heroImageUrl',
+        'primary_image_url',
+        'primaryImageUrl',
+        'cover_image_url',
+        'coverImageUrl',
+        'featured_image_url',
+        'featuredImageUrl',
+        'image_url',
+        'imageUrl',
+        'photo_url',
+        'photoUrl',
+        'background_image_url',
+        'backgroundImageUrl'
+      ]
+
+      for (const key of directKeys) {
+        const value = property[key]
+        const normalized = this.normalizeImageValue(value)
+        if (normalized) {
+          return normalized
+        }
+      }
+
+      const mediaCollections = [
+        property.photos,
+        property.images,
+        property.media,
+        property.gallery
+      ]
+
+      for (const collection of mediaCollections) {
+        const resolved = this.extractFromCollection(collection)
+        if (resolved) {
+          return resolved
+        }
+      }
+
+      return ''
+    },
+    extractFromCollection (collection) {
+      if (!collection) {
+        return ''
+      }
+
+      const items = Array.isArray(collection) ? collection : [collection]
+
+      for (const item of items) {
+        const normalized = this.normalizeImageValue(item)
+        if (normalized) {
+          return normalized
+        }
+      }
+
+      return ''
+    },
+    normalizeImageValue (value) {
+      if (!value) {
+        return ''
+      }
+
+      if (typeof value === 'string') {
+        return value.trim()
+      }
+
+      if (typeof value === 'object') {
+        const candidateKeys = ['url', 'href', 'src']
+        for (const key of candidateKeys) {
+          if (value[key]) {
+            return String(value[key]).trim()
+          }
+        }
+      }
+
+      return ''
+    },
+    normalizeWifiResponse (value) {
+      if (!value) {
+        return ''
+      }
+
+      if (typeof value === 'string') {
+        return value.trim()
+      }
+
+      if (typeof value === 'object') {
+        const candidateKeys = [
+          'qr_code',
+          'wifi_qr',
+          'wifiQr',
+          'url',
+          'href',
+          'src',
+          'image',
+          'image_url',
+          'imageUrl',
+          'data',
+          'base64'
+        ]
+
+        for (const key of candidateKeys) {
+          if (value[key]) {
+            return String(value[key]).trim()
+          }
+        }
+
+        if (value.qr && typeof value.qr === 'string') {
+          return value.qr.trim()
+        }
+      }
+
+      return ''
+    },
+    extractWifiFromProperty (payload) {
+      if (!payload) {
+        return ''
+      }
+
+      const property = payload.property || payload
+      if (!property || typeof property !== 'object') {
+        return ''
+      }
+
+      if (property.wifi_qr_code) {
+        return String(property.wifi_qr_code).trim()
+      }
+
+      if (property.wifiQrCode) {
+        return String(property.wifiQrCode).trim()
+      }
+
+      if (property.wifi_qr) {
+        return String(property.wifi_qr).trim()
+      }
+
+      if (property.wifiQr) {
+        return String(property.wifiQr).trim()
+      }
+
+      if (property.wifi && typeof property.wifi === 'object') {
+        const fromWifi = this.normalizeWifiResponse(property.wifi.qr_code || property.wifi.qr || property.wifi.code || property.wifi.image || property.wifi.url || property.wifi)
+        if (fromWifi) {
+          return fromWifi
+        }
+      }
+
+      if (Array.isArray(property.assets)) {
+        for (const asset of property.assets) {
+          const assetCode = this.normalizeWifiResponse(asset)
+          if (assetCode) {
+            return assetCode
+          }
+        }
+      }
+
+      return ''
     }
   },
   watch: {
@@ -458,17 +640,34 @@ export default {
 <style>
 .display-main {
   min-height: 100vh;
-  background: linear-gradient(145deg, rgba(244, 247, 251, 0.85), rgba(210, 226, 244, 0.95));
   position: relative;
+  overflow: hidden;
+  background-color: #0f2034;
 }
 
 .display-main::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at top left, rgba(25, 118, 210, 0.18), transparent 55%),
-    radial-gradient(circle at bottom right, rgba(25, 118, 210, 0.2), transparent 45%);
+  z-index: 0;
+  background-image: var(--display-background-image);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  transform: scale(1.02);
+  filter: brightness(0.82);
+}
+
+.display-main::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
   pointer-events: none;
+  background: linear-gradient(145deg, rgba(6, 26, 57, 0.68), rgba(10, 43, 82, 0.55)),
+    radial-gradient(circle at top left, rgba(25, 118, 210, 0.22), transparent 55%),
+    radial-gradient(circle at bottom right, rgba(100, 181, 246, 0.18), transparent 45%);
+  mix-blend-mode: multiply;
 }
 
 .content-container {
