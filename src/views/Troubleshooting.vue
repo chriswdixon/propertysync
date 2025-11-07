@@ -23,17 +23,25 @@
               <p v-if="routerStatus.signal_strength">
                 <strong>Signal Strength:</strong> {{ routerStatus.signal_strength }}
               </p>
+              <p v-if="offline" class="offline-note mt-2">
+                Live router data is unavailable while the display is offline.
+              </p>
             </div>
             <div v-else class="text-center">
-              <v-progress-circular indeterminate></v-progress-circular>
+              <v-progress-circular v-if="canCallApi" indeterminate></v-progress-circular>
+              <p v-else class="offline-note">Router status is unavailable while the display is offline.</p>
             </div>
           </v-card-text>
           <v-card-actions>
-            <v-btn color="primary" @click="refreshRouterStatus">
+            <v-btn color="primary" @click="refreshRouterStatus" :disabled="!canCallApi">
               <v-icon left>mdi-refresh</v-icon>
               Refresh Status
             </v-btn>
-            <v-btn color="warning" @click="confirmReboot" :disabled="!routerStatus || !routerStatus.online">
+            <v-btn
+              color="warning"
+              @click="confirmReboot"
+              :disabled="!routerStatus || !routerStatus.online || !canCallApi"
+            >
               <v-icon left>mdi-power</v-icon>
               Reboot Router
             </v-btn>
@@ -137,7 +145,12 @@
           <v-icon left>mdi-home</v-icon>
           Back to Home
         </v-btn>
-        <v-btn color="secondary" large @click="$emit('show-help')" class="ml-2">
+        <v-btn
+          color="secondary"
+          large
+          @click="$emit('show-help')"
+          class="ml-2"
+        >
           <v-icon left>mdi-help-circle</v-icon>
           Still Need Help?
         </v-btn>
@@ -153,7 +166,7 @@
         <v-card-actions>
           <v-spacer></v-spacer>
           <v-btn text @click="showRebootDialog = false">Cancel</v-btn>
-          <v-btn color="warning" @click="rebootRouter">Yes, Reboot</v-btn>
+          <v-btn color="warning" @click="rebootRouter" :disabled="!canCallApi">Yes, Reboot</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -163,48 +176,93 @@
 <script>
 import api from '../services/api'
 
+const API_CONFIGURED = Boolean(process.env.VUE_APP_API_URL)
+const offlineRouterStatus = () => ({
+  online: false,
+  uptime: 'Unavailable',
+  connected_devices: 0,
+  signal_strength: 'Unavailable'
+})
+
 export default {
   name: 'Troubleshooting',
   props: {
-    property: Object,
-    guestName: String
+    property: {
+      type: Object,
+      default: () => null
+    },
+    guestName: {
+      type: String,
+      default: ''
+    },
+    offline: {
+      type: Boolean,
+      default: false
+    }
   },
   data () {
     return {
-      routerStatus: null,
+      routerStatus: this.offline ? offlineRouterStatus() : null,
       showRebootDialog: false,
       showHelpDialog: false
     }
   },
   mounted () {
-    this.loadRouterStatus()
-    this.logTroubleshootingAccess()
+    if (this.canCallApi) {
+      this.loadRouterStatus()
+      this.logTroubleshootingAccess()
+    }
+  },
+  watch: {
+    offline (value) {
+      if (value) {
+        this.routerStatus = offlineRouterStatus()
+      } else if (this.canCallApi) {
+        this.routerStatus = null
+        this.loadRouterStatus()
+        this.logTroubleshootingAccess()
+      }
+    },
+    property (value) {
+      if (value && value.id && this.canCallApi) {
+        this.loadRouterStatus()
+        this.logTroubleshootingAccess()
+      }
+    }
+  },
+  computed: {
+    canCallApi () {
+      return !this.offline && API_CONFIGURED && this.property && this.property.id
+    }
   },
   methods: {
     async loadRouterStatus () {
-      if (!this.property || !this.property.id) return
+      if (!this.canCallApi) return
       
       try {
         const response = await api.getRouterStatus(this.property.id)
         this.routerStatus = response
       } catch (error) {
         console.error('Failed to load router status:', error)
-        this.routerStatus = {
-          online: false,
-          uptime: 'Unknown',
-          connected_devices: 0,
-          signal_strength: 'Unknown'
-        }
+        this.routerStatus = offlineRouterStatus()
       }
     },
     async refreshRouterStatus () {
+      if (!this.canCallApi) {
+        alert('Live router status is unavailable while the display is offline.')
+        return
+      }
       await this.loadRouterStatus()
     },
     confirmReboot () {
+      if (!this.canCallApi) {
+        alert('The display is offline, so the router cannot be rebooted remotely right now.')
+        return
+      }
       this.showRebootDialog = true
     },
     async logTroubleshootingAccess () {
-      if (!this.property || !this.property.id) return
+      if (!this.canCallApi) return
       
       try {
         await api.logTroubleshootingAccess(this.property.id, {
@@ -217,6 +275,11 @@ export default {
       }
     },
     async rebootRouter () {
+      if (!this.canCallApi) {
+        alert('Unable to reboot router while offline. Please try again once connectivity is restored.')
+        this.showRebootDialog = false
+        return
+      }
       try {
         const params = {}
         if (this.guestName) {
@@ -242,6 +305,10 @@ export default {
 h1 {
   font-size: 2.5rem;
   margin-bottom: 2rem;
+}
+.offline-note {
+  color: rgba(0, 0, 0, 0.6);
+  font-size: 0.9rem;
 }
 </style>
 
