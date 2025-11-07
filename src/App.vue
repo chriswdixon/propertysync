@@ -236,6 +236,7 @@ export default {
       credentialsForm: {
         token: '',
         secret: ''
+      },
       credentialsError: '',
       backgroundImage: '',
       defaultBackgroundImage: 'https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=2000&q=80',
