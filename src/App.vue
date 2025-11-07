@@ -547,12 +547,17 @@ export default {
       }
 
       if (typeof value === 'string') {
-        return value.trim()
+        return this.normalizeWifiString(value)
       }
 
       if (typeof value === 'object') {
         const candidateKeys = [
+          'data_uri',
+          'dataUri',
           'qr_code',
+          'qrCode',
+          'qr_image',
+          'qrImage',
           'wifi_qr',
           'wifiQr',
           'url',
@@ -562,17 +567,24 @@ export default {
           'image_url',
           'imageUrl',
           'data',
-          'base64'
+          'base64',
+          'encoded'
         ]
 
         for (const key of candidateKeys) {
           if (value[key]) {
-            return String(value[key]).trim()
+            const normalized = this.normalizeWifiString(String(value[key]))
+            if (normalized) {
+              return normalized
+            }
           }
         }
 
-        if (value.qr && typeof value.qr === 'string') {
-          return value.qr.trim()
+        if (value.qr) {
+          const normalizedQr = this.normalizeWifiString(String(value.qr))
+          if (normalizedQr) {
+            return normalizedQr
+          }
         }
       }
 
@@ -588,26 +600,50 @@ export default {
         return ''
       }
 
-      if (property.wifi_qr_code) {
-        return String(property.wifi_qr_code).trim()
-      }
+      const directWifiKeys = [
+        'wifi_qr_code',
+        'wifiQrCode',
+        'wifi_qr',
+        'wifiQr',
+        'wifi_qr_image',
+        'wifiQrImage',
+        'wifi_qr_url',
+        'wifiQrUrl'
+      ]
 
-      if (property.wifiQrCode) {
-        return String(property.wifiQrCode).trim()
-      }
-
-      if (property.wifi_qr) {
-        return String(property.wifi_qr).trim()
-      }
-
-      if (property.wifiQr) {
-        return String(property.wifiQr).trim()
+      for (const key of directWifiKeys) {
+        if (property[key]) {
+          const normalized = this.normalizeWifiString(String(property[key]))
+          if (normalized) {
+            return normalized
+          }
+        }
       }
 
       if (property.wifi && typeof property.wifi === 'object') {
-        const fromWifi = this.normalizeWifiResponse(property.wifi.qr_code || property.wifi.qr || property.wifi.code || property.wifi.image || property.wifi.url || property.wifi)
-        if (fromWifi) {
-          return fromWifi
+        const wifiCandidates = [
+          property.wifi.qr_code,
+          property.wifi.qrCode,
+          property.wifi.qr_image,
+          property.wifi.qrImage,
+          property.wifi.qr,
+          property.wifi.code,
+          property.wifi.image,
+          property.wifi.image_url,
+          property.wifi.imageUrl,
+          property.wifi.url,
+          property.wifi.href,
+          property.wifi.src,
+          property.wifi.data,
+          property.wifi.base64,
+          property.wifi.encoded
+        ]
+
+        for (const candidate of wifiCandidates) {
+          const normalizedCandidate = this.normalizeWifiResponse(candidate)
+          if (normalizedCandidate) {
+            return normalizedCandidate
+          }
         }
       }
 
@@ -621,6 +657,93 @@ export default {
       }
 
       return ''
+    },
+    normalizeWifiString (value) {
+      if (!value) {
+        return ''
+      }
+
+      const trimmed = String(value).trim()
+      if (!trimmed) {
+        return ''
+      }
+
+      const decodedDataUri = this.decodeDataUriIfNeeded(trimmed)
+      if (decodedDataUri) {
+        return decodedDataUri
+      }
+
+      if (this.isLikelyHttpUrl(trimmed)) {
+        return trimmed
+      }
+
+      return ''
+    },
+    decodeDataUriIfNeeded (value) {
+      if (!value || typeof value !== 'string') {
+        return ''
+      }
+
+      const trimmed = value.trim()
+      if (!trimmed.toLowerCase().startsWith('data:')) {
+        return ''
+      }
+
+      const commaIndex = trimmed.indexOf(',')
+      if (commaIndex === -1) {
+        return ''
+      }
+
+      const header = trimmed.slice(0, commaIndex)
+      let data = trimmed.slice(commaIndex + 1)
+
+      if (!data) {
+        return ''
+      }
+
+      if (data.includes('%')) {
+        try {
+          data = decodeURIComponent(data)
+        } catch (error) {
+          console.warn('Failed to decode percent-encoded WiFi QR data URI', error)
+          return ''
+        }
+      }
+
+      data = data.replace(/\s+/g, '')
+
+      if (/;base64/i.test(header)) {
+        if (!this.isValidBase64(data)) {
+          return ''
+        }
+      }
+
+      return `${header},${data}`
+    },
+    isLikelyHttpUrl (value) {
+      return /^https?:\/\//i.test(value)
+    },
+    isValidBase64 (value) {
+      if (!value) {
+        return false
+      }
+
+      const sanitized = value.replace(/\s+/g, '')
+      if (!/^([A-Za-z0-9+/]+={0,2})$/.test(sanitized)) {
+        return false
+      }
+
+      try {
+        if (typeof window !== 'undefined' && typeof window.atob === 'function') {
+          window.atob(sanitized)
+        } else if (typeof Buffer !== 'undefined') {
+          Buffer.from(sanitized, 'base64')
+        }
+        return true
+      } catch (error) {
+        console.warn('Invalid base64 WiFi QR payload', error)
+        return false
+      }
     }
   },
   watch: {

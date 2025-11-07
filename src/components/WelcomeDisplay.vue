@@ -217,32 +217,129 @@ import api from '../services/api'
 
 const API_CONFIGURED = Boolean(process.env.VUE_APP_API_URL)
 
+const candidateKeys = [
+  'data_uri',
+  'dataUri',
+  'qr_code',
+  'qrCode',
+  'qr_image',
+  'qrImage',
+  'wifi_qr',
+  'wifiQr',
+  'url',
+  'href',
+  'src',
+  'image',
+  'image_url',
+  'imageUrl',
+  'data',
+  'base64',
+  'encoded',
+  'qr'
+]
+
 const normalizeQr = (value) => {
   if (!value) return null
-  if (typeof value === 'string') return value.trim()
-  if (typeof value === 'object') {
-    const candidateKeys = [
-      'qr_code',
-      'wifi_qr',
-      'wifiQr',
-      'url',
-      'href',
-      'src',
-      'image',
-      'image_url',
-      'imageUrl',
-      'data',
-      'base64',
-      'qr'
-    ]
 
+  if (typeof value === 'string') {
+    return normalizeQrString(value)
+  }
+
+  if (typeof value === 'object') {
     for (const key of candidateKeys) {
       if (value[key]) {
-        return String(value[key]).trim()
+        const normalized = normalizeQrString(String(value[key]))
+        if (normalized) {
+          return normalized
+        }
       }
     }
   }
+
   return null
+}
+
+const normalizeQrString = (value) => {
+  if (!value) return ''
+
+  const trimmed = String(value).trim()
+  if (!trimmed) return ''
+
+  const decodedDataUri = decodeDataUriIfNeeded(trimmed)
+  if (decodedDataUri) {
+    return decodedDataUri
+  }
+
+  if (isLikelyHttpUrl(trimmed)) {
+    return trimmed
+  }
+
+  return ''
+}
+
+const decodeDataUriIfNeeded = (value) => {
+  if (!value || typeof value !== 'string') {
+    return ''
+  }
+
+  const trimmed = value.trim()
+  if (!trimmed.toLowerCase().startsWith('data:')) {
+    return ''
+  }
+
+  const commaIndex = trimmed.indexOf(',')
+  if (commaIndex === -1) {
+    return ''
+  }
+
+  const header = trimmed.slice(0, commaIndex)
+  let data = trimmed.slice(commaIndex + 1)
+
+  if (!data) {
+    return ''
+  }
+
+  if (data.includes('%')) {
+    try {
+      data = decodeURIComponent(data)
+    } catch (error) {
+      console.warn('Failed to decode percent-encoded QR data URI', error)
+      return ''
+    }
+  }
+
+  data = data.replace(/\s+/g, '')
+
+  if (/;base64/i.test(header) && !isValidBase64(data)) {
+    return ''
+  }
+
+  return `${header},${data}`
+}
+
+const isLikelyHttpUrl = (value) => /^https?:\/\//i.test(value)
+
+const isValidBase64 = (value) => {
+  if (!value) {
+    return false
+  }
+
+  const sanitized = value.replace(/\s+/g, '')
+  if (!/^([A-Za-z0-9+/]+={0,2})$/.test(sanitized)) {
+    return false
+  }
+
+  try {
+    if (typeof window !== 'undefined' && typeof window.atob === 'function') {
+      window.atob(sanitized)
+    } else if (typeof Buffer !== 'undefined') {
+      Buffer.from(sanitized, 'base64')
+    }
+    return true
+  } catch (error) {
+    console.warn('Invalid base64 QR payload', error)
+    return false
+  }
 }
 
 const gradientPalette = [
