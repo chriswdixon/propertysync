@@ -45,7 +45,7 @@ import api from './services/api'
 
 const OFFLINE_FALLBACK = (propertyID) => ({
   property: {
-    id: propertyID,
+    id: propertyID ?? 'unknown',
     name: 'Welcome!',
     address: 'Property information is currently unavailable.'
   },
@@ -76,7 +76,7 @@ export default {
       guestName: '',
       property: null,
       booking: null,
-      propertyID: parseInt(process.env.VUE_APP_PROPERTY_ID || '1', 10),
+      propertyID: null,
       wifiQR: null,
       checkoutPolicies: [],
       propertyRules: [],
@@ -84,13 +84,36 @@ export default {
     }
   },
   mounted () {
+    this.propertyID = this.resolvePropertyId()
+    if (!this.propertyID) {
+      this.loading = false
+      this.error = {
+        code: 'NO_PROPERTY_ID',
+        message: 'No property ID configured. Set VUE_APP_PROPERTY_ID in Netlify environment variables.'
+      }
+      return
+    }
     this.loadData()
     if (this.hasWsConfig) {
       this.$ws.connect(this.propertyID)
     }
   },
   methods: {
+    resolvePropertyId () {
+      const raw = process.env.VUE_APP_PROPERTY_ID
+      if (!raw) return null
+      const parsed = parseInt(raw, 10)
+      return Number.isNaN(parsed) ? null : parsed
+    },
     async loadData () {
+      if (!this.propertyID) {
+        this.error = {
+          code: 'NO_PROPERTY_ID',
+          message: 'No property ID configured. Set VUE_APP_PROPERTY_ID in Netlify environment variables.'
+        }
+        this.loading = false
+        return
+      }
       if (!this.apiConfigured) {
         this.applyOfflineFallback({
           code: 'NO_API_CONFIG',
@@ -127,6 +150,16 @@ export default {
       }
     },
     retry () {
+      const resolvedProperty = this.resolvePropertyId()
+      if (!resolvedProperty) {
+        this.loading = false
+        this.error = {
+          code: 'NO_PROPERTY_ID',
+          message: 'No property ID configured. Set VUE_APP_PROPERTY_ID in Netlify environment variables.'
+        }
+        return
+      }
+      this.propertyID = resolvedProperty
       if (this.hasWsConfig) {
         this.$ws.disconnect()
         this.$ws.connect(this.propertyID)
@@ -165,6 +198,9 @@ export default {
     errorMessage () {
       if (!this.error) {
         return ''
+      }
+      if (this.error.code === 'NO_PROPERTY_ID') {
+        return this.error.message
       }
       if (this.error.code === 'NO_API_CONFIG') {
         return this.error.message

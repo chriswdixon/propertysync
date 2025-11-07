@@ -13,8 +13,9 @@ The app is a Vue 2 + Vuetify single-page experience that expects a backend provi
 
 ### Environment Variables
 
-| Variable | Purpose | Default |
+| Variable | Purpose | Default / Notes |
 | --- | --- | --- |
+| `VUE_APP_PROPERTY_ID` | **Required** numeric ID of the property this display should load | No default (must be set) |
 | `VUE_APP_API_URL` | REST endpoint for property/booking data | `http://localhost:8080/api` |
 | `VUE_APP_WS_URL` | WebSocket endpoint for realtime updates | `ws://localhost:8080/ws` |
 
