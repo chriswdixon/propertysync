@@ -176,6 +176,7 @@
             </v-card-actions>
           </v-card>
         </v-dialog>
+        <on-screen-keyboard ref="virtualKeyboard" />
       </v-container>
     </v-main>
   </v-app>
@@ -183,6 +184,7 @@
 
 <script>
 import api from './services/api'
+import OnScreenKeyboard from './components/OnScreenKeyboard.vue'
 
 const OFFLINE_FALLBACK = (propertyID) => ({
   property: {
@@ -234,7 +236,6 @@ export default {
       credentialsForm: {
         token: '',
         secret: ''
-      },
       credentialsError: '',
       backgroundImage: '',
       defaultBackgroundImage: 'https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=2000&q=80',
@@ -249,6 +250,9 @@ export default {
       adminAuthorized: false,
       adminSessionExpiresAt: 0
     }
+  },
+  components: {
+    OnScreenKeyboard
   },
   computed: {
     apiConfigured () {
@@ -289,6 +293,10 @@ export default {
     this.bootstrapCredentials()
     this.resetBackgroundImage()
     this.initializeDisplay()
+    if (typeof document !== 'undefined') {
+      document.addEventListener('focusin', this.handleInputFocus, true)
+      document.addEventListener('touchstart', this.handleTouchInput, true)
+    }
   },
   methods: {
     handleConfigClick () {
@@ -304,6 +312,70 @@ export default {
       }
 
       this.openAdminDialog()
+    },
+    handleInputFocus (event) {
+      const target = event.target
+      if (!this.requiresKeyboard(target)) {
+        if (this.$refs.virtualKeyboard && this.$refs.virtualKeyboard.visible && !this.isKeyboardElement(target)) {
+          this.closeKeyboard()
+        }
+        return
+      }
+
+      event.preventDefault()
+      if (typeof target.blur === 'function') {
+        target.blur()
+      }
+
+      this.openKeyboard(target)
+    },
+    handleTouchInput (event) {
+      const path = event.composedPath ? event.composedPath() : [event.target]
+      const input = path.find(el => this.requiresKeyboard(el))
+      if (!input) {
+        return
+      }
+
+      event.preventDefault()
+      if (typeof input.blur === 'function') {
+        input.blur()
+      }
+      this.openKeyboard(input)
+    },
+    requiresKeyboard (element) {
+      if (!element || element === document || element === window) {
+        return false
+      }
+      if (this.isKeyboardElement(element)) {
+        return false
+      }
+      if (element.readOnly || element.disabled) {
+        return false
+      }
+      const tag = element.tagName
+      if (tag === 'INPUT') {
+        const type = element.type ? element.type.toLowerCase() : 'text'
+        const unsupported = ['checkbox', 'radio', 'file', 'range', 'button', 'submit', 'hidden']
+        return !unsupported.includes(type)
+      }
+      if (tag === 'TEXTAREA') {
+        return true
+      }
+      return false
+    },
+    isKeyboardElement (element) {
+      return Boolean(element && element.closest && element.closest('.vk-container'))
+    },
+    openKeyboard (target) {
+      if (!this.$refs.virtualKeyboard) {
+        return
+      }
+      this.$refs.virtualKeyboard.open(target)
+    },
+    closeKeyboard () {
+      if (this.$refs.virtualKeyboard) {
+        this.$refs.virtualKeyboard.cancel()
+      }
     },
     bootstrapCredentials () {
       const stored = this.loadStoredCredentials()
@@ -376,12 +448,14 @@ export default {
       this.resetAdminForm()
       this.adminError = ''
       this.adminDialog = true
+      this.closeKeyboard()
     },
     closeAdminDialog () {
       this.adminDialog = false
       this.adminLoading = false
       this.adminError = ''
       this.resetAdminForm()
+      this.closeKeyboard()
     },
     openCredentialDialog () {
       this.credentialsError = ''
@@ -390,6 +464,7 @@ export default {
         secret: this.displaySecret || ''
       }
       this.credentialsDialog = true
+      this.closeKeyboard()
     },
     async saveCredentials () {
       if (this.credentialsSaving) {
@@ -902,6 +977,7 @@ export default {
       if (!value) {
         this.credentialsError = ''
         this.credentialsSaving = false
+        this.closeKeyboard()
       }
     },
     adminDialog (value) {
@@ -909,11 +985,16 @@ export default {
         this.adminError = ''
         this.adminLoading = false
         this.resetAdminForm()
+        this.closeKeyboard()
       }
     }
   },
   beforeDestroy () {
     this.teardownWebsocket()
+    if (typeof document !== 'undefined') {
+      document.removeEventListener('focusin', this.handleInputFocus, true)
+      document.removeEventListener('touchstart', this.handleTouchInput, true)
+    }
   }
 }
 </script>
@@ -993,4 +1074,5 @@ export default {
   }
 }
 </style>
+
 

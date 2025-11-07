@@ -639,18 +639,27 @@ export default {
   align-items: center;
   flex-wrap: wrap;
   margin-top: 24px;
+  gap: 16px;
+}
+
+.hero-text {
+  flex: 1 1 60%;
+  min-width: 0;
 }
 
 .hero-title {
   font-size: 2.4rem;
   font-weight: 700;
   margin: 0;
+  word-break: break-word;
+  line-height: 1.1;
 }
 
 .hero-subtitle {
   opacity: 0.85;
   font-size: 1.05rem;
   margin-bottom: 0;
+  word-break: break-word;
 }
 
 .hero-avatar {
@@ -791,6 +800,10 @@ export default {
 
   .hero-content {
     align-items: flex-start;
+  }
+
+  .hero-text {
+    flex-basis: 100%;
   }
 
   .hero-avatar {
