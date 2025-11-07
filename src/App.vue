@@ -457,29 +457,50 @@ export default {
 
 <style>
 .display-main {
-  background: #f5f5f5;
+  min-height: 100vh;
+  background: linear-gradient(145deg, rgba(244, 247, 251, 0.85), rgba(210, 226, 244, 0.95));
+  position: relative;
 }
-.fill-height {
-  height: 100vh;
+
+.display-main::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at top left, rgba(25, 118, 210, 0.18), transparent 55%),
+    radial-gradient(circle at bottom right, rgba(25, 118, 210, 0.2), transparent 45%);
+  pointer-events: none;
 }
+
 .content-container {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  position: relative;
+  z-index: 1;
 }
+
 .error-details {
   opacity: 0.75;
   font-size: 0.85rem;
 }
+
 .offline-card {
   max-width: 420px;
   margin: 0 auto;
 }
+
 .config-button {
   position: fixed;
   right: 24px;
   bottom: 24px;
-  z-index: 10;
+  z-index: 20;
+}
+
+@media (max-width: 960px) {
+  .config-button {
+    right: 16px;
+    bottom: 16px;
+  }
 }
 </style>
 

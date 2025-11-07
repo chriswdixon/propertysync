@@ -1,136 +1,143 @@
 <template>
-  <v-container fluid>
-    <v-row>
-      <v-col cols="12">
-        <h1 class="text-center">Troubleshooting</h1>
+  <v-container fluid class="troubleshooting-display pa-6 pa-md-12">
+    <v-row class="mb-8" align="center">
+      <v-col cols="12" md="8">
+        <h1 class="page-title">
+          <v-icon color="primary" left>mdi-lifebuoy</v-icon>
+          We're here to help
+        </h1>
+        <p class="page-subtitle">Guided steps to keep your stay running smoothly.</p>
+      </v-col>
+      <v-col cols="12" md="4" class="d-flex justify-md-end justify-center">
+        <v-btn color="primary" class="mr-2" large @click="$router.push('/')">
+          <v-icon left>mdi-home</v-icon>
+          Back to Welcome Screen
+        </v-btn>
+        <v-btn color="secondary" outlined large @click="$emit('show-help')">
+          <v-icon left>mdi-headset</v-icon>
+          Contact Host
+        </v-btn>
       </v-col>
     </v-row>
-    <v-row>
-      <v-col cols="12" md="6">
-        <v-card>
-          <v-card-title>WiFi Router</v-card-title>
-          <v-card-text>
-            <div v-if="routerStatus">
-              <p><strong>Status:</strong> 
-                <v-chip :color="routerStatus.online ? 'success' : 'error'" small>
-                  {{ routerStatus.online ? 'Online' : 'Offline' }}
-                </v-chip>
-              </p>
-              <p v-if="routerStatus.uptime"><strong>Uptime:</strong> {{ routerStatus.uptime }}</p>
-              <p v-if="routerStatus.connected_devices">
-                <strong>Connected Devices:</strong> {{ routerStatus.connected_devices }}
-              </p>
-              <p v-if="routerStatus.signal_strength">
-                <strong>Signal Strength:</strong> {{ routerStatus.signal_strength }}
-              </p>
-              <p v-if="offline" class="offline-note mt-2">
-                Live router data is unavailable while the display is offline.
+
+    <v-row dense>
+      <v-col cols="12" md="5">
+        <v-card class="status-card" elevation="12">
+          <v-card-text class="pa-8">
+            <div class="d-flex justify-space-between align-center mb-4">
+              <div>
+                <h2 class="status-title">Network Status</h2>
+                <p class="status-subtitle">Live health of the property router.</p>
+              </div>
+              <v-avatar size="52" :color="statusColor + ' lighten-4'">
+                <v-icon :color="statusColor">{{ statusIcon }}</v-icon>
+              </v-avatar>
+            </div>
+
+            <div v-if="routerStatus" class="status-metrics mb-4">
+              <div class="status-pill" :class="statusPillClass">
+                <v-icon left small>{{ statusIcon }}</v-icon>
+                {{ statusMessage }}
+              </div>
+              <div class="metric">
+                <span class="metric-label">Uptime</span>
+                <span class="metric-value">{{ routerStatus.uptime || '—' }}</span>
+              </div>
+              <div class="metric">
+                <span class="metric-label">Connected devices</span>
+                <span class="metric-value">{{ routerStatus.connected_devices ?? '—' }}</span>
+              </div>
+              <div class="metric">
+                <span class="metric-label">Signal strength</span>
+                <span class="metric-value">{{ routerStatus.signal_strength || '—' }}</span>
+              </div>
+              <p v-if="offline" class="offline-note mt-3">
+                Live router data is paused while offline. We’ll refresh when the connection returns.
               </p>
             </div>
-            <div v-else class="text-center">
-              <v-progress-circular v-if="canCallApi" indeterminate></v-progress-circular>
-              <p v-else class="offline-note">Router status is unavailable while the display is offline.</p>
+            <div v-else class="text-center py-6">
+              <v-progress-circular v-if="canCallApi" size="48" indeterminate color="primary"></v-progress-circular>
+              <p v-else class="offline-note mt-3">Router status is unavailable while the display is offline.</p>
+            </div>
+
+            <div class="d-flex flex-column flex-sm-row">
+              <v-btn
+                color="primary"
+                class="mb-3 mr-sm-4"
+                large
+                :disabled="!canCallApi"
+                @click="refreshRouterStatus"
+              >
+                <v-icon left>mdi-reload</v-icon>
+                Refresh Status
+              </v-btn>
+              <v-btn
+                color="warning"
+                large
+                :disabled="!routerStatus || !routerStatus.online || !canCallApi"
+                @click="confirmReboot"
+              >
+                <v-icon left>mdi-restore</v-icon>
+                Reboot Router
+              </v-btn>
             </div>
           </v-card-text>
-          <v-card-actions>
-            <v-btn color="primary" @click="refreshRouterStatus" :disabled="!canCallApi">
-              <v-icon left>mdi-refresh</v-icon>
-              Refresh Status
-            </v-btn>
-            <v-btn
-              color="warning"
-              @click="confirmReboot"
-              :disabled="!routerStatus || !routerStatus.online || !canCallApi"
-            >
-              <v-icon left>mdi-power</v-icon>
-              Reboot Router
-            </v-btn>
-          </v-card-actions>
         </v-card>
-      </v-col>
-      <v-col cols="12" md="6">
-        <v-card>
-          <v-card-title>Quick Fixes</v-card-title>
-          <v-card-text>
-            <v-list>
-              <v-list-item>
-                <v-list-item-content>
-                  <v-list-item-title>WiFi Not Working?</v-list-item-title>
-                  <v-list-item-subtitle>
-                    Try rebooting the router or check if other devices can connect
-                  </v-list-item-subtitle>
-                </v-list-item-content>
-              </v-list-item>
-              <v-list-item>
-                <v-list-item-content>
-                  <v-list-item-title>Slow Internet?</v-list-item-title>
-                  <v-list-item-subtitle>
-                    Check the number of connected devices and try rebooting the router
-                  </v-list-item-subtitle>
-                </v-list-item-content>
-              </v-list-item>
-              <v-list-item>
-                <v-list-item-content>
-                  <v-list-item-title>Can't Connect?</v-list-item-title>
-                  <v-list-item-subtitle>
-                    Make sure you're using the correct WiFi password shown on this screen
-                  </v-list-item-subtitle>
-                </v-list-item-content>
-              </v-list-item>
-            </v-list>
+
+        <v-card class="mt-8 assistance-card" elevation="8">
+          <v-card-text class="pa-6">
+            <h3 class="assistant-title">Need a quicker answer?</h3>
+            <p class="assistant-subtitle">
+              Scan the QR code on the welcome screen or tap contact host to chat with us directly.
+            </p>
+            <v-btn color="primary" text @click="$emit('show-help')">
+              <v-icon left>mdi-message-text</v-icon>
+              Message the host
+            </v-btn>
           </v-card-text>
         </v-card>
       </v-col>
-    </v-row>
-    <v-row>
-      <v-col cols="12">
-        <v-card>
-          <v-card-title>Common Issues</v-card-title>
-          <v-card-text>
-            <v-expansion-panels>
-              <v-expansion-panel>
-                <v-expansion-panel-header>WiFi Connection Issues</v-expansion-panel-header>
+
+      <v-col cols="12" md="7">
+        <v-card class="quick-fixes" elevation="10">
+          <v-card-title>
+            <v-icon left color="primary">mdi-lightbulb-on-outline</v-icon>
+            Quick Fixes
+          </v-card-title>
+          <v-divider></v-divider>
+          <v-card-text class="pa-6">
+            <v-row>
+              <v-col cols="12" sm="6" v-for="(tip, index) in quickFixes" :key="index">
+                <v-sheet class="tip-card" elevation="2">
+                  <div class="tip-icon">
+                    <v-icon color="primary">{{ tip.icon }}</v-icon>
+                  </div>
+                  <div>
+                    <h4 class="tip-title">{{ tip.title }}</h4>
+                    <p class="tip-body">{{ tip.body }}</p>
+                  </div>
+                </v-sheet>
+              </v-col>
+            </v-row>
+          </v-card-text>
+        </v-card>
+
+        <v-card class="mt-8" elevation="10">
+          <v-card-title>
+            <v-icon left color="primary">mdi-book-open-variant</v-icon>
+            Common Issues &amp; Resolutions
+          </v-card-title>
+          <v-divider></v-divider>
+          <v-card-text class="pa-0">
+            <v-expansion-panels accordion tile>
+              <v-expansion-panel v-for="(issue, index) in issueGuides" :key="index">
+                <v-expansion-panel-header>
+                  <v-icon left color="primary">{{ issue.icon }}</v-icon>
+                  {{ issue.title }}
+                </v-expansion-panel-header>
                 <v-expansion-panel-content>
-                  <ol>
-                    <li>Check that WiFi is enabled on your device</li>
-                    <li>Verify you're connected to the correct network ({{ property && property.wifi_ssid ? property.wifi_ssid : 'Network Name' }})</li>
-                    <li>Try forgetting the network and reconnecting</li>
-                    <li>Restart your device</li>
-                    <li>If the problem persists, try rebooting the router</li>
-                  </ol>
-                </v-expansion-panel-content>
-              </v-expansion-panel>
-              <v-expansion-panel>
-                <v-expansion-panel-header>Slow Internet Speed</v-expansion-panel-header>
-                <v-expansion-panel-content>
-                  <ol>
-                    <li>Check how many devices are connected to the network</li>
-                    <li>Move closer to the router</li>
-                    <li>Close bandwidth-heavy applications</li>
-                    <li>Try rebooting the router</li>
-                    <li>Contact the property owner if issues continue</li>
-                  </ol>
-                </v-expansion-panel-content>
-              </v-expansion-panel>
-              <v-expansion-panel>
-                <v-expansion-panel-header>TV/Streaming Issues</v-expansion-panel-header>
-                <v-expansion-panel-content>
-                  <ol>
-                    <li>Check that the TV is powered on</li>
-                    <li>Verify HDMI/input connections</li>
-                    <li>Try unplugging and replugging the TV</li>
-                    <li>Check if streaming apps need to be signed in</li>
-                  </ol>
-                </v-expansion-panel-content>
-              </v-expansion-panel>
-              <v-expansion-panel>
-                <v-expansion-panel-header>Thermostat Issues</v-expansion-panel-header>
-                <v-expansion-panel-content>
-                  <ol>
-                    <li>Check the thermostat display is on</li>
-                    <li>Verify the temperature setting</li>
-                    <li>Try adjusting the temperature up or down</li>
-                    <li>Wait 10-15 minutes for changes to take effect</li>
+                  <ol class="guide-list">
+                    <li v-for="(step, idx) in issue.steps" :key="idx">{{ step }}</li>
                   </ol>
                 </v-expansion-panel-content>
               </v-expansion-panel>
@@ -139,34 +146,25 @@
         </v-card>
       </v-col>
     </v-row>
-    <v-row>
-      <v-col cols="12" class="text-center">
-        <v-btn color="primary" large @click="$router.push('/')">
-          <v-icon left>mdi-home</v-icon>
-          Back to Home
-        </v-btn>
-        <v-btn
-          color="secondary"
-          large
-          @click="$emit('show-help')"
-          class="ml-2"
-        >
-          <v-icon left>mdi-help-circle</v-icon>
-          Still Need Help?
-        </v-btn>
-      </v-col>
-    </v-row>
-    <v-dialog v-model="showRebootDialog" max-width="400">
+
+    <v-dialog v-model="showRebootDialog" max-width="420">
       <v-card>
-        <v-card-title>Reboot Router?</v-card-title>
-        <v-card-text>
-          <p>Are you sure you want to reboot the router? This will temporarily disconnect all devices from WiFi.</p>
-          <p class="mt-2"><strong>This will take about 2-3 minutes.</strong></p>
+        <v-card-title class="headline font-weight-bold">
+          <v-icon left color="warning">mdi-alert-decagram</v-icon>
+          Reboot router?
+        </v-card-title>
+        <v-divider></v-divider>
+        <v-card-text class="pt-6">
+          <p>
+            This will temporarily disconnect all devices from Wi-Fi. Please confirm everyone is ready before
+            continuing.
+          </p>
+          <p class="font-weight-medium mt-4">The reboot takes about 2-3 minutes.</p>
         </v-card-text>
-        <v-card-actions>
+        <v-card-actions class="px-6 pb-6">
           <v-spacer></v-spacer>
           <v-btn text @click="showRebootDialog = false">Cancel</v-btn>
-          <v-btn color="warning" @click="rebootRouter" :disabled="!canCallApi">Yes, Reboot</v-btn>
+          <v-btn color="warning" :disabled="!canCallApi" @click="rebootRouter">Yes, reboot</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -204,7 +202,28 @@ export default {
     return {
       routerStatus: this.offline ? offlineRouterStatus() : null,
       showRebootDialog: false,
-      showHelpDialog: false
+      quickFixes: [
+        {
+          title: 'Restart your device',
+          body: 'Turning your phone, tablet, or laptop off and back on solves most connection glitches.',
+          icon: 'mdi-restart'
+        },
+        {
+          title: 'Move closer',
+          body: 'Walls and appliances can weaken Wi-Fi. Step closer to the router for a stronger signal.',
+          icon: 'mdi-access-point-network'
+        },
+        {
+          title: 'Forget & reconnect',
+          body: 'Remove the network from your device’s Wi-Fi list, then scan the QR code to reconnect.',
+          icon: 'mdi-wifi-arrow-up-down'
+        },
+        {
+          title: 'Pause heavy streaming',
+          body: 'If several devices are streaming at once, pause a few to improve speed for everyone.',
+          icon: 'mdi-play-pause'
+        }
+      ]
     }
   },
   mounted () {
@@ -233,12 +252,80 @@ export default {
   computed: {
     canCallApi () {
       return !this.offline && API_CONFIGURED && api.hasDisplayCredentials() && this.property && this.property.id
+    },
+    statusColor () {
+      if (!this.routerStatus) {
+        return 'info'
+      }
+      return this.routerStatus.online ? 'success' : 'error'
+    },
+    statusMessage () {
+      if (!this.routerStatus) {
+        return 'Checking connection'
+      }
+      return this.routerStatus.online ? 'Network looks great' : 'We’re offline'
+    },
+    statusIcon () {
+      if (!this.routerStatus) {
+        return 'mdi-wifi-refresh'
+      }
+      return this.routerStatus.online ? 'mdi-wifi-check' : 'mdi-wifi-off'
+    },
+    statusPillClass () {
+      return this.routerStatus && this.routerStatus.online ? 'pill-online' : 'pill-offline'
+    },
+    issueGuides () {
+      const wifiName = this.property && this.property.wifi_ssid ? this.property.wifi_ssid : 'the property network'
+      return [
+        {
+          title: 'Wi-Fi connection issues',
+          icon: 'mdi-wifi-alert',
+          steps: [
+            'Ensure Wi-Fi is enabled on your device.',
+            `Connect to "${wifiName}".`,
+            'Forget the network and reconnect if prompted for the password again.',
+            'Restart your device.',
+            'Reboot the router if nothing changes.'
+          ]
+        },
+        {
+          title: 'Slow internet speed',
+          icon: 'mdi-speedometer-slow',
+          steps: [
+            'Check how many devices are streaming or downloading large files.',
+            'Move closer to the router to reduce interference.',
+            'Pause or close heavy streaming apps.',
+            'Reboot the router to refresh the connection.',
+            'Contact the host if speeds do not recover.'
+          ]
+        },
+        {
+          title: 'TV / streaming issues',
+          icon: 'mdi-television',
+          steps: [
+            'Confirm the TV is powered on and the correct HDMI/input is selected.',
+            'Check streaming app logins—some services sign out automatically.',
+            'Unplug the TV for 30 seconds, then plug it back in.',
+            'Ensure the streaming device has power and is connected to Wi-Fi.'
+          ]
+        },
+        {
+          title: 'Thermostat not responding',
+          icon: 'mdi-thermometer-lines',
+          steps: [
+            'Confirm the thermostat display is lit.',
+            'Adjust the temperature up or down by a few degrees.',
+            'Give the system 10–15 minutes to react.',
+            'If no change, contact the host for assistance.'
+          ]
+        }
+      ]
     }
   },
   methods: {
     async loadRouterStatus () {
       if (!this.canCallApi) return
-      
+
       try {
         const response = await api.getRouterStatus()
         this.routerStatus = response
@@ -263,7 +350,7 @@ export default {
     },
     async logTroubleshootingAccess () {
       if (!this.canCallApi) return
-      
+
       try {
         await api.logTroubleshootingAccess({
           guest_name: this.guestName || 'Guest',
@@ -302,13 +389,159 @@ export default {
 </script>
 
 <style scoped>
-h1 {
-  font-size: 2.5rem;
-  margin-bottom: 2rem;
+.troubleshooting-display {
+  position: relative;
 }
+
+.page-title {
+  font-size: 2.4rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+}
+
+.page-subtitle {
+  font-size: 1.1rem;
+  color: rgba(0, 0, 0, 0.54);
+  margin: 0;
+}
+
+.status-card {
+  border-radius: 20px;
+  background: linear-gradient(160deg, rgba(25, 118, 210, 0.85), rgba(33, 150, 243, 0.75));
+  color: white;
+}
+
+.status-title {
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.status-subtitle {
+  margin: 4px 0 0;
+  opacity: 0.9;
+}
+
+.status-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.status-pill {
+  border-radius: 999px;
+  padding: 8px 18px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.95rem;
+  backdrop-filter: blur(3px);
+}
+
+.pill-online {
+  background: rgba(76, 175, 80, 0.25);
+  color: #e8f5e9;
+}
+
+.pill-offline {
+  background: rgba(244, 67, 54, 0.25);
+  color: #ffebee;
+}
+
+.metric {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+}
+
+.metric-label {
+  opacity: 0.9;
+}
+
+.metric-value {
+  font-weight: 600;
+}
+
 .offline-note {
-  color: rgba(0, 0, 0, 0.6);
-  font-size: 0.9rem;
+  opacity: 0.85;
 }
+
+.assistance-card {
+  border-radius: 18px;
+  background: white;
+}
+
+.assistant-title {
+  font-weight: 600;
+  font-size: 1.2rem;
+  margin-bottom: 8px;
+}
+
+.assistant-subtitle {
+  margin-bottom: 16px;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.quick-fixes {
+  border-radius: 18px;
+}
+
+.tip-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  border-radius: 16px;
+  padding: 18px 20px;
+  background: rgba(244, 247, 251, 0.85);
+}
+
+.tip-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(25, 118, 210, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tip-title {
+  margin: 0 0 6px;
+  font-weight: 600;
+}
+
+.tip-body {
+  margin: 0;
+  color: rgba(0, 0, 0, 0.62);
+}
+
+.guide-list {
+  margin: 0;
+  padding-left: 18px;
+  color: rgba(0, 0, 0, 0.74);
+}
+
+.guide-list li {
+  margin-bottom: 6px;
+}
+
+@media (max-width: 960px) {
+  .page-title {
+    font-size: 2rem;
+  }
+
+  .status-card {
+    margin-bottom: 16px;
+  }
+
+  .tip-card {
+    flex-direction: column;
+  }
+}
+</style>
 </style>
 
