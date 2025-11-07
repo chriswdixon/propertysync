@@ -15,11 +15,12 @@ The app is a Vue 2 + Vuetify single-page experience that expects a backend provi
 
 | Variable | Purpose | Default / Notes |
 | --- | --- | --- |
-| `VUE_APP_PROPERTY_ID` | **Required** numeric ID of the property this display should load | No default (must be set) |
+| `VUE_APP_DISPLAY_TOKEN` | **Required** display token generated per property in HostSync | No default (rotate per kiosk) |
+| `VUE_APP_DISPLAY_SECRET` | **Required** secret paired with the display token | No default (store securely) |
 | `VUE_APP_API_URL` | REST endpoint for property/booking data | `http://localhost:8080/api` |
 | `VUE_APP_WS_URL` | WebSocket endpoint for realtime updates | `ws://localhost:8080/ws` |
 
-Create a `.env.local` file to override these for local development.
+Create a `.env.local` file to override these for local development if you want baked-in defaults. When the kiosk runs, operators can click the gear button in the lower-right corner to enter or rotate the display token/secret; the app persists them locally and uses them for all subsequent API calls.
 
 ## Deployment (Netlify)
 

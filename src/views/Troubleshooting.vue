@@ -232,7 +232,7 @@ export default {
   },
   computed: {
     canCallApi () {
-      return !this.offline && API_CONFIGURED && this.property && this.property.id
+      return !this.offline && API_CONFIGURED && api.hasDisplayCredentials() && this.property && this.property.id
     }
   },
   methods: {
@@ -240,7 +240,7 @@ export default {
       if (!this.canCallApi) return
       
       try {
-        const response = await api.getRouterStatus(this.property.id)
+        const response = await api.getRouterStatus()
         this.routerStatus = response
       } catch (error) {
         console.error('Failed to load router status:', error)
@@ -265,7 +265,7 @@ export default {
       if (!this.canCallApi) return
       
       try {
-        await api.logTroubleshootingAccess(this.property.id, {
+        await api.logTroubleshootingAccess({
           guest_name: this.guestName || 'Guest',
           action: 'view_troubleshooting'
         })
@@ -285,7 +285,7 @@ export default {
         if (this.guestName) {
           params.guest_name = this.guestName
         }
-        await api.rebootRouter(this.property.id, params)
+        await api.rebootRouter(params)
         this.showRebootDialog = false
         alert('Router reboot initiated. Please wait 2-3 minutes for the router to restart.')
         // Refresh status after a delay

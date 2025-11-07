@@ -239,16 +239,15 @@ export default {
       return this.localWiFiQr
     },
     canSubmitReport () {
-      return !this.offline && API_CONFIGURED && this.property && this.property.id
+      return !this.offline && API_CONFIGURED && api.hasDisplayCredentials() && this.property && this.property.id
     }
   },
   methods: {
     async hydrateFromApi () {
-      if (this.offline || !API_CONFIGURED || !this.property || !this.property.id) {
+      if (this.offline || !API_CONFIGURED || !api.hasDisplayCredentials() || !this.property || !this.property.id) {
         return
       }
 
-      const propertyId = this.property.id
       const needsPolicies = !this.localCheckoutPolicies.length
       const needsRules = !this.localPropertyRules.length
       const needsWifi = !this.localWiFiQr
@@ -259,7 +258,7 @@ export default {
 
       if (needsPolicies || needsRules) {
         try {
-          const response = await api.getPropertyData(propertyId)
+          const response = await api.getPropertyData()
           if (needsPolicies && response.checkout_policies) {
             this.localCheckoutPolicies = response.checkout_policies
           }
@@ -273,7 +272,7 @@ export default {
 
       if (needsWifi) {
         try {
-          const response = await api.getWiFiQR(propertyId)
+          const response = await api.getWiFiQR()
           this.localWiFiQr = normalizeQr(response)
         } catch (error) {
           console.error('Failed to load WiFi QR code:', error)
@@ -281,7 +280,7 @@ export default {
       }
     },
     openHelpDialog () {
-      if (this.offline || !API_CONFIGURED) {
+      if (this.offline || !API_CONFIGURED || !api.hasDisplayCredentials()) {
         alert('The display is currently offline. Please contact your host directly for assistance.')
         return
       }
