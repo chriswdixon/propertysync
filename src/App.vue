@@ -209,6 +209,7 @@ const OFFLINE_FALLBACK = (propertyID) => ({
 })
 
 const STORAGE_KEY = 'propertysync.displayCredentials'
+const ADMIN_SESSION_DURATION_MS = 5 * 60 * 1000
 
 export default {
   name: 'App',
@@ -236,7 +237,17 @@ export default {
       },
       credentialsError: '',
       backgroundImage: '',
-      defaultBackgroundImage: 'https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=2000&q=80'
+      defaultBackgroundImage: 'https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=2000&q=80',
+      adminDialog: false,
+      adminLoading: false,
+      adminError: '',
+      adminPasswordVisible: false,
+      adminForm: {
+        email: '',
+        password: ''
+      },
+      adminAuthorized: false,
+      adminSessionExpiresAt: 0
     }
   },
   computed: {
@@ -280,6 +291,20 @@ export default {
     this.initializeDisplay()
   },
   methods: {
+    handleConfigClick () {
+      if (!this.hasStoredCredentials && !this.credentialsConfigured) {
+        this.openCredentialDialog()
+        return
+      }
+
+      if (this.hasValidAdminSession()) {
+        this.extendAdminSession()
+        this.openCredentialDialog()
+        return
+      }
+
+      this.openAdminDialog()
+    },
     bootstrapCredentials () {
       const stored = this.loadStoredCredentials()
       if (stored) {
@@ -340,11 +365,23 @@ export default {
       this.handshakeMetadata = null
       api.setDisplayCredentials('', '')
       this.credentialsForm = { token: '', secret: '' }
+      this.clearAdminSession()
       this.applyOfflineFallback({
         code: 'MISSING_DISPLAY_CREDENTIALS',
         message: 'Display token and secret are not configured. Enter new credentials to connect.'
       })
       this.openCredentialDialog()
+    },
+    openAdminDialog () {
+      this.resetAdminForm()
+      this.adminError = ''
+      this.adminDialog = true
+    },
+    closeAdminDialog () {
+      this.adminDialog = false
+      this.adminLoading = false
+      this.adminError = ''
+      this.resetAdminForm()
     },
     openCredentialDialog () {
       this.credentialsError = ''
@@ -378,6 +415,27 @@ export default {
       this.error = null
       this.fallbackActive = false
       this.initializeDisplay()
+    },
+    hasValidAdminSession () {
+      if (!this.adminAuthorized) {
+        return false
+      }
+      if (!this.adminSessionExpiresAt) {
+        return false
+      }
+      if (Date.now() >= this.adminSessionExpiresAt) {
+        this.clearAdminSession()
+        return false
+      }
+      return true
+    },
+    extendAdminSession () {
+      this.adminAuthorized = true
+      this.adminSessionExpiresAt = Date.now() + ADMIN_SESSION_DURATION_MS
+    },
+    clearAdminSession () {
+      this.adminAuthorized = false
+      this.adminSessionExpiresAt = 0
     },
     async initializeDisplay () {
       if (!this.apiConfigured) {
@@ -438,6 +496,11 @@ export default {
 
       try {
         const propertyResponse = await api.getPropertyData()
+        const wifiResponse = await api.getWiFiQR().catch(err => {
+          console.error('Failed to load WiFi QR code:', err)
+          return null
+        })
+
         const propertyPayload = propertyResponse?.property ? propertyResponse : { property: propertyResponse }
 
         this.property = propertyPayload.property || null
@@ -446,16 +509,7 @@ export default {
         this.checkoutPolicies = propertyPayload.checkout_policies || []
         this.propertyRules = propertyPayload.property_rules || []
         this.updateBackgroundFromProperty(this.property)
-
-        let wifiCode = this.extractWifiFromProperty(propertyPayload)
-        if (!wifiCode) {
-          const wifiResponse = await api.getWiFiQR().catch(err => {
-            console.error('Failed to load WiFi QR code:', err)
-            return null
-          })
-          wifiCode = this.normalizeWifiResponse(wifiResponse)
-        }
-
+        const wifiCode = this.normalizeWifiResponse(wifiResponse) || this.extractWifiFromProperty(propertyPayload)
         this.wifiQR = wifiCode || null
 
         this.loading = false
@@ -475,6 +529,41 @@ export default {
       this.error = null
       this.fallbackActive = false
       await this.initializeDisplay()
+    },
+    async authenticateAdmin () {
+      if (this.adminLoading) {
+        return
+      }
+
+      const email = (this.adminForm.email || '').trim()
+      const password = (this.adminForm.password || '').trim()
+
+      if (!email || !password) {
+        this.adminError = 'Email and password are required.'
+        return
+      }
+
+      this.adminLoading = true
+      this.adminError = ''
+
+      try {
+        await api.authenticateAdmin(email, password)
+        this.extendAdminSession()
+        this.closeAdminDialog()
+        this.openCredentialDialog()
+      } catch (error) {
+        const message = error?.response?.data?.error || error?.response?.data?.message || error?.message || 'Unable to authenticate admin credentials. Please try again.'
+        this.adminError = message
+      } finally {
+        this.adminLoading = false
+      }
+    },
+    resetAdminForm () {
+      this.adminForm = {
+        email: '',
+        password: ''
+      }
+      this.adminPasswordVisible = false
     },
     applyOfflineFallback (errorInfo) {
       const fallback = OFFLINE_FALLBACK(this.propertyID)
@@ -814,6 +903,13 @@ export default {
         this.credentialsError = ''
         this.credentialsSaving = false
       }
+    },
+    adminDialog (value) {
+      if (!value) {
+        this.adminError = ''
+        this.adminLoading = false
+        this.resetAdminForm()
+      }
     }
   },
   beforeDestroy () {
@@ -861,6 +957,16 @@ export default {
   flex-direction: column;
   position: relative;
   z-index: 1;
+}
+
+.content-container::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.78) 0%, rgba(255, 255, 255, 0.62) 35%, rgba(255, 255, 255, 0.45) 100%);
+  backdrop-filter: blur(1.5px);
 }
 
 .error-details {

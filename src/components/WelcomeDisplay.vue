@@ -505,11 +505,6 @@ export default {
         return
       }
 
-      const propertyProvidedQr = normalizeQr(this.property?.wifi_qr_image || this.property?.wifiQrImage || (this.property?.wifi && (this.property.wifi.qr_code || this.property.wifi.qrCode || this.property.wifi.qr_image || this.property.wifi.qrImage)))
-      if (propertyProvidedQr && !this.localWiFiQr) {
-        this.localWiFiQr = propertyProvidedQr
-      }
-
       const needsPolicies = !this.localCheckoutPolicies.length
       const needsRules = !this.localPropertyRules.length
       const needsWifi = !this.localWiFiQr

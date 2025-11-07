@@ -13,7 +13,13 @@
           <v-icon left>mdi-home</v-icon>
           Back to Welcome Screen
         </v-btn>
-        <v-btn color="secondary" outlined large @click="$emit('show-help')">
+        <v-btn
+          color="secondary"
+          outlined
+          large
+          :disabled="!canSubmitReport"
+          @click="openHelpDialog"
+        >
           <v-icon left>mdi-headset</v-icon>
           Contact Host
         </v-btn>
@@ -88,12 +94,33 @@
           <v-card-text class="pa-6">
             <h3 class="assistant-title">Need a quicker answer?</h3>
             <p class="assistant-subtitle">
-              Scan the QR code on the welcome screen or tap contact host to chat with us directly.
+              Scan the Wi-Fi QR code below or tap contact host to chat with us directly.
             </p>
-            <v-btn color="primary" text @click="$emit('show-help')">
+            <v-btn color="primary" text :disabled="!canSubmitReport" @click="openHelpDialog">
               <v-icon left>mdi-message-text</v-icon>
               Message the host
             </v-btn>
+          </v-card-text>
+        </v-card>
+
+        <v-card class="mt-8 wifi-card" elevation="12">
+          <v-card-text class="py-8 px-6 text-center">
+            <div class="wifi-chip mb-4">
+              <v-chip color="white" class="primary--text" outlined>
+                <v-icon left color="primary">mdi-wifi</v-icon>
+                Wi-Fi Access
+              </v-chip>
+            </div>
+            <div v-if="wifiQRCode" class="wifi-qr-wrapper">
+              <img :src="wifiQRCode" alt="WiFi QR Code" class="wifi-qr elevation-8" />
+              <p v-if="wifiSsid" class="wifi-ssid">
+                {{ wifiSsid }}
+              </p>
+            </div>
+            <div v-else class="offline-hint">
+              <v-icon large color="white" class="mb-3">mdi-cloud-off-outline</v-icon>
+              <p>Wi-Fi details are unavailable right now. Please check the welcome packet.</p>
+            </div>
           </v-card-text>
         </v-card>
       </v-col>
@@ -131,7 +158,7 @@
           <v-card-text class="pa-0">
             <v-expansion-panels accordion tile>
               <v-expansion-panel v-for="(issue, index) in issueGuides" :key="index">
-                <v-expansion-panel-header>
+                <v-expansion-panel-header class="issue-header">
                   <v-icon left color="primary">{{ issue.icon }}</v-icon>
                   {{ issue.title }}
                 </v-expansion-panel-header>
@@ -168,6 +195,63 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <v-dialog v-model="showHelpDialog" max-width="540">
+      <v-card>
+        <v-card-title class="headline font-weight-bold">
+          <v-icon left color="primary">mdi-lifebuoy</v-icon>
+          Let us know what’s happening
+        </v-card-title>
+        <v-divider></v-divider>
+        <v-card-text class="pt-6">
+          <v-form ref="reportForm">
+            <v-select
+              v-model="reportData.report_type"
+              :items="reportTypes"
+              label="Need help with"
+              outlined
+              dense
+              required
+            ></v-select>
+            <v-text-field
+              v-model="reportData.title"
+              label="Short title"
+              outlined
+              dense
+              required
+            ></v-text-field>
+            <v-textarea
+              v-model="reportData.description"
+              label="Tell us more"
+              outlined
+              auto-grow
+              rows="3"
+              required
+            ></v-textarea>
+            <v-select
+              v-model="reportData.urgency"
+              :items="urgencyLevels"
+              label="Urgency"
+              outlined
+              dense
+              required
+            ></v-select>
+          </v-form>
+        </v-card-text>
+        <v-card-actions class="px-6 pb-6">
+          <v-spacer></v-spacer>
+          <v-btn text @click="showHelpDialog = false">Cancel</v-btn>
+          <v-btn
+            color="primary"
+            :disabled="reportSubmitting || !canSubmitReport"
+            :loading="reportSubmitting"
+            @click="submitReport"
+          >
+            Submit
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
@@ -182,6 +266,129 @@ const offlineRouterStatus = () => ({
   signal_strength: 'Unavailable'
 })
 
+const candidateQrKeys = [
+  'data_uri',
+  'dataUri',
+  'qr_code',
+  'qrCode',
+  'qr_image',
+  'qrImage',
+  'wifi_qr',
+  'wifiQr',
+  'url',
+  'href',
+  'src',
+  'image',
+  'image_url',
+  'imageUrl',
+  'data',
+  'base64',
+  'encoded',
+  'qr'
+]
+
+const normalizeQr = (value) => {
+  if (!value) return null
+
+  if (typeof value === 'string') {
+    return normalizeQrString(value)
+  }
+
+  if (typeof value === 'object') {
+    for (const key of candidateQrKeys) {
+      if (value[key]) {
+        const normalized = normalizeQrString(String(value[key]))
+        if (normalized) {
+          return normalized
+        }
+      }
+    }
+  }
+
+  return null
+}
+
+const normalizeQrString = (value) => {
+  if (!value) return ''
+
+  const trimmed = String(value).trim()
+  if (!trimmed) return ''
+
+  const decoded = decodeDataUriIfNeeded(trimmed)
+  if (decoded) {
+    return decoded
+  }
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed
+  }
+
+  return ''
+}
+
+const decodeDataUriIfNeeded = (value) => {
+  if (!value || typeof value !== 'string') {
+    return ''
+  }
+
+  const trimmed = value.trim()
+  if (!trimmed.toLowerCase().startsWith('data:')) {
+    return ''
+  }
+
+  const commaIndex = trimmed.indexOf(',')
+  if (commaIndex === -1) {
+    return ''
+  }
+
+  const header = trimmed.slice(0, commaIndex)
+  let data = trimmed.slice(commaIndex + 1)
+
+  if (!data) {
+    return ''
+  }
+
+  if (data.includes('%')) {
+    try {
+      data = decodeURIComponent(data)
+    } catch (error) {
+      console.warn('Failed to decode percent-encoded QR data URI', error)
+      return ''
+    }
+  }
+
+  data = data.replace(/\s+/g, '')
+
+  if (/;base64/i.test(header) && !isValidBase64(data)) {
+    return ''
+  }
+
+  return `${header},${data}`
+}
+
+const isValidBase64 = (value) => {
+  if (!value) {
+    return false
+  }
+
+  const sanitized = value.replace(/\s+/g, '')
+  if (!/^([A-Za-z0-9+/]+={0,2})$/.test(sanitized)) {
+    return false
+  }
+
+  try {
+    if (typeof window !== 'undefined' && typeof window.atob === 'function') {
+      window.atob(sanitized)
+    } else if (typeof Buffer !== 'undefined') {
+      Buffer.from(sanitized, 'base64')
+    }
+    return true
+  } catch (error) {
+    console.warn('Invalid base64 QR payload', error)
+    return false
+  }
+}
+
 export default {
   name: 'Troubleshooting',
   props: {
@@ -193,6 +400,14 @@ export default {
       type: String,
       default: ''
     },
+    booking: {
+      type: Object,
+      default: () => null
+    },
+    wifiQr: {
+      type: [String, Object],
+      default: null
+    },
     offline: {
       type: Boolean,
       default: false
@@ -202,6 +417,9 @@ export default {
     return {
       routerStatus: this.offline ? offlineRouterStatus() : null,
       showRebootDialog: false,
+      showHelpDialog: false,
+      reportSubmitting: false,
+      localWiFiQr: normalizeQr(this.wifiQr),
       quickFixes: [
         {
           title: 'Restart your device',
@@ -223,6 +441,25 @@ export default {
           body: 'If several devices are streaming at once, pause a few to improve speed for everyone.',
           icon: 'mdi-play-pause'
         }
+      ],
+      reportData: {
+        report_type: 'maintenance',
+        title: '',
+        description: '',
+        urgency: 'normal'
+      },
+      reportTypes: [
+        { text: 'Maintenance Issue', value: 'maintenance' },
+        { text: 'Appliance Problem', value: 'appliance' },
+        { text: 'WiFi/Internet Issue', value: 'wifi' },
+        { text: 'Safety Concern', value: 'safety' },
+        { text: 'Other', value: 'other' }
+      ],
+      urgencyLevels: [
+        { text: 'Low', value: 'low' },
+        { text: 'Normal', value: 'normal' },
+        { text: 'High', value: 'high' },
+        { text: 'Urgent', value: 'urgent' }
       ]
     }
   },
@@ -236,6 +473,7 @@ export default {
     offline (value) {
       if (value) {
         this.routerStatus = offlineRouterStatus()
+        this.showHelpDialog = false
       } else if (this.canCallApi) {
         this.routerStatus = null
         this.loadRouterStatus()
@@ -246,6 +484,18 @@ export default {
       if (value && value.id && this.canCallApi) {
         this.loadRouterStatus()
         this.logTroubleshootingAccess()
+      }
+    },
+    wifiQr: {
+      immediate: true,
+      handler (value) {
+        this.localWiFiQr = normalizeQr(value)
+      }
+    },
+    showHelpDialog (value) {
+      if (!value) {
+        this.reportSubmitting = false
+        this.resetReport()
       }
     }
   },
@@ -273,6 +523,18 @@ export default {
     },
     statusPillClass () {
       return this.routerStatus && this.routerStatus.online ? 'pill-online' : 'pill-offline'
+    },
+    wifiQRCode () {
+      return this.localWiFiQr
+    },
+    wifiSsid () {
+      if (this.property && this.property.wifi_ssid) {
+        return this.property.wifi_ssid
+      }
+      return ''
+    },
+    canSubmitReport () {
+      return this.canCallApi
     },
     issueGuides () {
       const wifiName = this.property && this.property.wifi_ssid ? this.property.wifi_ssid : 'the property network'
@@ -341,6 +603,13 @@ export default {
       }
       await this.loadRouterStatus()
     },
+    openHelpDialog () {
+      if (!this.canSubmitReport) {
+        alert('The display is currently offline. Please contact your host directly for assistance.')
+        return
+      }
+      this.showHelpDialog = true
+    },
     confirmReboot () {
       if (!this.canCallApi) {
         alert('The display is offline, so the router cannot be rebooted remotely right now.')
@@ -382,6 +651,52 @@ export default {
       } catch (error) {
         console.error('Failed to reboot router:', error)
         alert('Failed to reboot router. Please try again or contact support.')
+      }
+    },
+    async submitReport () {
+      if (!this.canSubmitReport) {
+        alert('The display is currently offline. Please contact your host directly for assistance.')
+        return
+      }
+      if (!this.reportData.title || !this.reportData.description) {
+        alert('Please fill in all required fields')
+        return
+      }
+      if (!this.reportData.report_type) {
+        alert('Please select a problem type')
+        return
+      }
+
+      this.reportSubmitting = true
+      try {
+        const reportPayload = {
+          property_id: this.property ? this.property.id : null,
+          booking_id: this.booking ? this.booking.id : null,
+          guest_name: this.guestName || 'Guest',
+          guest_email: this.booking ? this.booking.guest_email : '',
+          report_type: this.reportData.report_type,
+          title: this.reportData.title,
+          description: this.reportData.description,
+          urgency: this.reportData.urgency
+        }
+
+        await api.submitGuestReport(reportPayload)
+        alert('Thank you! Your report has been submitted. We will contact you shortly.')
+        this.showHelpDialog = false
+        this.resetReport()
+      } catch (error) {
+        console.error('Failed to submit report:', error)
+        alert('Failed to submit report. Please try again.')
+      } finally {
+        this.reportSubmitting = false
+      }
+    },
+    resetReport () {
+      this.reportData = {
+        report_type: 'maintenance',
+        title: '',
+        description: '',
+        urgency: 'normal'
       }
     }
   }
@@ -484,6 +799,46 @@ export default {
 .assistant-subtitle {
   margin-bottom: 16px;
   color: rgba(0, 0, 0, 0.6);
+}
+
+.wifi-card {
+  border-radius: 18px;
+  background: linear-gradient(145deg, #1976d2, #2196f3);
+  color: white;
+}
+
+.wifi-chip {
+  display: flex;
+  justify-content: center;
+}
+
+.wifi-qr-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.wifi-qr {
+  max-width: 220px;
+  border-radius: 18px;
+  padding: 12px;
+  background: white;
+}
+
+.wifi-ssid {
+  margin-top: 16px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.offline-hint {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.95rem;
+}
+
+.issue-header {
+  align-items: center !important;
+  gap: 16px;
 }
 
 .quick-fixes {

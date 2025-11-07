@@ -41,10 +41,18 @@ const authenticateDisplay = (token, secret) => {
   }).then(res => res.data)
 }
 
+const authenticateAdmin = (email, password) => {
+  return authedApi.post('/pi/display/admin/login', {
+    email,
+    password
+  }).then(res => res.data)
+}
+
 const hasDisplayCredentials = () => Boolean(displayToken && displaySecret)
 
 export default {
   authenticateDisplay,
+  authenticateAdmin,
   setDisplayCredentials,
   hasDisplayCredentials,
   getPropertyData () {
