@@ -113,6 +113,7 @@
             </v-list>
           </v-card-text>
         </v-card>
+
       </v-col>
 
       <v-col cols="12" md="4">
@@ -166,15 +167,35 @@
         </v-card>
 
         <v-card class="mt-8 map-card" elevation="10">
-          <v-card-title class="section-title">
-            <v-icon left color="primary">mdi-map-search</v-icon>
-            Nearby Restaurants
+          <v-card-title class="section-title map-title">
+            <div class="map-title-text">
+              <v-icon left color="primary">mdi-map-search</v-icon>
+              <span>{{ mapHeading }}</span>
+            </div>
+            <v-spacer></v-spacer>
+            <v-btn-toggle v-model="mapMode" dense mandatory class="map-toggle" color="primary">
+              <v-btn value="restaurants" small>Restaurants</v-btn>
+              <v-btn value="attractions" small>Attractions</v-btn>
+            </v-btn-toggle>
           </v-card-title>
           <v-divider></v-divider>
           <v-card-text class="pa-0">
+            <div class="map-controls pa-4">
+              <v-text-field
+                v-model="mapQuery"
+                outlined
+                dense
+                clearable
+                placeholder="Search places"
+                prepend-inner-icon="mdi-magnify"
+                hide-details="auto"
+                @input="handleMapQuery"
+                @click:clear="clearMapQuery"
+              ></v-text-field>
+            </div>
             <div class="map-frame-wrapper">
               <iframe
-                :src="restaurantMapUrl"
+                :src="mapUrl"
                 class="map-frame"
                 allowfullscreen
                 loading="lazy"
@@ -422,6 +443,9 @@ export default {
       localCheckoutPolicies: Array.isArray(this.checkoutPolicies) ? this.checkoutPolicies : [],
       localPropertyRules: Array.isArray(this.propertyRules) ? this.propertyRules : [],
       heroBackgroundValue: gradientPalette[Math.floor(Math.random() * gradientPalette.length)],
+      mapMode: 'restaurants',
+      mapQuery: '',
+      mapUserHasQuery: false,
       reportData: {
         report_type: 'maintenance',
         title: '',
@@ -473,6 +497,11 @@ export default {
     offline (isOffline) {
       if (!isOffline) {
         this.hydrateFromApi()
+      }
+    },
+    mapMode () {
+      if (!this.mapUserHasQuery) {
+        this.mapQuery = ''
       }
     }
   },
@@ -536,6 +565,32 @@ export default {
         background: this.heroBackgroundValue
       }
     },
+    mapHeading () {
+      return this.mapMode === 'attractions' ? 'Local Attractions' : 'Nearby Restaurants'
+    },
+    mapQueryEffective () {
+      const trimmed = (this.mapQuery || '').trim()
+      if (trimmed) {
+        return trimmed
+      }
+      return this.mapMode === 'attractions' ? 'local attractions' : 'restaurants'
+    },
+    mapContextLocation () {
+      if (this.propertyAddress && this.propertyAddress !== 'Your home away from home') {
+        return this.propertyAddress
+      }
+      if (this.propertyName && this.propertyName !== 'PropertySync Residence') {
+        return this.propertyName
+      }
+      return ''
+    },
+    mapUrl () {
+      let query = this.mapQueryEffective
+      if (this.mapContextLocation) {
+        query = `${query} near ${this.mapContextLocation}`
+      }
+      return `https://maps.google.com/maps?q=${encodeURIComponent(query)}&t=&z=13&ie=UTF8&iwloc=&output=embed`
+    },
     checkInInstructions () {
       if (this.booking && this.booking.check_in_instructions) {
         return this.booking.check_in_instructions
@@ -547,15 +602,6 @@ export default {
         return this.formatDateTime(this.booking.check_in_instructions_sent_at)
       }
       return ''
-    },
-    restaurantMapUrl () {
-      const baseQuery = this.propertyAddress
-        ? `restaurants near ${this.propertyAddress}`
-        : this.propertyName
-          ? `restaurants near ${this.propertyName}`
-          : 'restaurants'
-      const query = encodeURIComponent(baseQuery)
-      return `https://maps.google.com/maps?q=${query}&t=&z=13&ie=UTF8&iwloc=&output=embed`
     }
   },
   methods: {
@@ -663,6 +709,13 @@ export default {
         hour: 'numeric',
         minute: '2-digit'
       })
+    },
+    handleMapQuery (value) {
+      this.mapUserHasQuery = Boolean((value || '').trim())
+    },
+    clearMapQuery () {
+      this.mapQuery = ''
+      this.mapUserHasQuery = false
     }
   }
 }
@@ -896,6 +949,28 @@ export default {
 .map-card {
   border-radius: 18px;
   overflow: hidden;
+}
+
+.map-title {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.map-title-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.map-toggle .v-btn {
+  text-transform: none;
+}
+
+.map-controls {
+  background: rgba(255, 255, 255, 0.92);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .map-frame-wrapper {
