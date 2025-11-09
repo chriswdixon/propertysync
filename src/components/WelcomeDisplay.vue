@@ -50,6 +50,24 @@
           </v-card-text>
         </v-card>
 
+        <v-card
+          v-if="checkInInstructions"
+          class="mt-8 section-card check-in-card"
+          elevation="10"
+        >
+          <v-card-title class="section-title">
+            <v-icon left color="primary">mdi-door-open</v-icon>
+            Check-in Information
+          </v-card-title>
+          <v-divider></v-divider>
+          <v-card-text class="py-5 px-6">
+            <div class="instructions-body">{{ checkInInstructions }}</div>
+            <div v-if="checkInInstructionsUpdated" class="instructions-updated mt-4">
+              Last updated: {{ checkInInstructionsUpdated }}
+            </div>
+          </v-card-text>
+        </v-card>
+
         <v-card v-if="displayCheckoutPolicies.length > 0" class="mt-8 section-card" elevation="10">
           <v-card-title class="section-title">
             <v-icon color="primary" left>mdi-clipboard-check-outline</v-icon>
@@ -518,6 +536,18 @@ export default {
         background: this.heroBackgroundValue
       }
     },
+    checkInInstructions () {
+      if (this.booking && this.booking.check_in_instructions) {
+        return this.booking.check_in_instructions
+      }
+      return ''
+    },
+    checkInInstructionsUpdated () {
+      if (this.booking && this.booking.check_in_instructions_sent_at) {
+        return this.formatDateTime(this.booking.check_in_instructions_sent_at)
+      }
+      return ''
+    },
     restaurantMapUrl () {
       const baseQuery = this.propertyAddress
         ? `restaurants near ${this.propertyAddress}`
@@ -622,6 +652,16 @@ export default {
         year: 'numeric',
         month: 'long',
         day: 'numeric'
+      })
+    },
+    formatDateTime (date) {
+      if (!date) return ''
+      return new Date(date).toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
       })
     }
   }
@@ -747,6 +787,20 @@ export default {
 .section-title {
   font-weight: 600;
   font-size: 1.1rem;
+}
+
+.check-in-card .instructions-body {
+  white-space: pre-line;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: rgba(0, 0, 0, 0.78);
+}
+
+.instructions-updated {
+  font-size: 0.85rem;
+  color: rgba(0, 0, 0, 0.54);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .transparent-timeline::before {
