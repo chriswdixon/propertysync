@@ -24,9 +24,11 @@ const setDisplayCredentials = (token, secret) => {
   displaySecret = secret || ''
 
   if (displayToken && displaySecret) {
+    authedApi.defaults.headers.common.Authorization = `Bearer ${displayToken}`
     authedApi.defaults.headers.common['X-Display-Token'] = displayToken
     authedApi.defaults.headers.common['X-Display-Secret'] = displaySecret
   } else {
+    delete authedApi.defaults.headers.common.Authorization
     delete authedApi.defaults.headers.common['X-Display-Token']
     delete authedApi.defaults.headers.common['X-Display-Secret']
   }
@@ -55,26 +57,32 @@ export default {
   authenticateAdmin,
   setDisplayCredentials,
   hasDisplayCredentials,
-  getPropertyData () {
-    return authedApi.get('/pi/display/property').then(res => res.data)
+  getPropertyData (propertyId) {
+    const path = propertyId ? `/pi/property/${propertyId}` : '/pi/display/property'
+    return authedApi.get(path).then(res => res.data)
   },
-  getWiFiQR () {
-    return authedApi.get('/pi/display/wifi-qr').then(res => res.data)
+  getWiFiQR (propertyId) {
+    const path = propertyId ? `/pi/property/${propertyId}/wifi-qr` : '/pi/display/wifi-qr'
+    return authedApi.get(path).then(res => res.data)
   },
-  getActiveBooking () {
-    return authedApi.get('/pi/display/active-booking').then(res => res.data)
+  getActiveBooking (propertyId) {
+    const path = propertyId ? `/pi/property/${propertyId}/active-booking` : '/pi/display/active-booking'
+    return authedApi.get(path).then(res => res.data)
   },
   submitGuestReport (reportData) {
     return authedApi.post('/guest-reports', reportData).then(res => res.data)
   },
-  getRouterStatus () {
-    return authedApi.get('/pi/display/router/status').then(res => res.data)
+  getRouterStatus (propertyId) {
+    const path = propertyId ? `/pi/property/${propertyId}/router/status` : '/pi/display/router/status'
+    return authedApi.get(path).then(res => res.data)
   },
-  rebootRouter (params) {
-    return authedApi.post('/pi/display/router/reboot', null, { params }).then(res => res.data)
+  rebootRouter (propertyId, params) {
+    const url = propertyId ? `/pi/property/${propertyId}/router/reboot` : '/pi/display/router/reboot'
+    return authedApi.post(url, null, { params }).then(res => res.data)
   },
-  logTroubleshootingAccess (data) {
-    return authedApi.post('/pi/display/troubleshooting/log', data).then(res => res.data)
+  logTroubleshootingAccess (propertyId, data) {
+    const url = propertyId ? `/pi/property/${propertyId}/troubleshooting/log` : '/pi/display/troubleshooting/log'
+    return authedApi.post(url, data).then(res => res.data)
   }
 }
 

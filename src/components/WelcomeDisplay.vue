@@ -574,7 +574,7 @@ export default {
 
       if (needsPolicies || needsRules) {
         try {
-          const response = await api.getPropertyData()
+          const response = await api.getPropertyData(this.property?.id)
           if (needsPolicies && response.checkout_policies) {
             this.localCheckoutPolicies = response.checkout_policies
           }
@@ -588,7 +588,7 @@ export default {
 
       if (needsWifi) {
         try {
-          const response = await api.getWiFiQR()
+          const response = await api.getWiFiQR(this.property?.id)
           this.localWiFiQr = normalizeQr(response)
         } catch (error) {
           console.error('Failed to load WiFi QR code:', error)

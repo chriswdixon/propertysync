@@ -571,8 +571,8 @@ export default {
       }
 
       try {
-        const propertyResponse = await api.getPropertyData()
-        const wifiResponse = await api.getWiFiQR().catch(err => {
+        const propertyResponse = await api.getPropertyData(this.propertyID)
+        const wifiResponse = await api.getWiFiQR(this.propertyID).catch(err => {
           console.error('Failed to load WiFi QR code:', err)
           return null
         })
