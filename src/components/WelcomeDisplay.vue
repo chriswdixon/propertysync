@@ -166,6 +166,24 @@
           </v-card-text>
         </v-card>
 
+        <v-card
+          v-if="checkInInstructions"
+          class="mt-8 section-card check-in-card"
+          elevation="10"
+        >
+          <v-card-title class="section-title">
+            <v-icon left color="primary">mdi-door-open</v-icon>
+            Check-in Information
+          </v-card-title>
+          <v-divider></v-divider>
+          <v-card-text class="py-5 px-6">
+            <div class="instructions-body">{{ checkInInstructions }}</div>
+            <div v-if="checkInInstructionsUpdated" class="instructions-updated mt-4">
+              Last updated: {{ checkInInstructionsUpdated }}
+            </div>
+          </v-card-text>
+        </v-card>
+
         <v-card class="mt-8 map-card" elevation="10">
           <v-card-title class="section-title map-title">
             <div class="map-title-text">
@@ -595,11 +613,17 @@ export default {
       if (this.booking && this.booking.check_in_instructions) {
         return this.booking.check_in_instructions
       }
+      if (this.property && this.property.check_in_instructions) {
+        return this.property.check_in_instructions
+      }
       return ''
     },
     checkInInstructionsUpdated () {
       if (this.booking && this.booking.check_in_instructions_sent_at) {
         return this.formatDateTime(this.booking.check_in_instructions_sent_at)
+      }
+      if (this.property && this.property.check_in_instructions && this.property.updated_at) {
+        return this.formatDateTime(this.property.updated_at)
       }
       return ''
     }
@@ -1005,5 +1029,4 @@ export default {
     margin-top: 16px;
   }
 }
-</style>
 </style>
