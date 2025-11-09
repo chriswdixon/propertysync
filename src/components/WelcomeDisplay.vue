@@ -17,11 +17,9 @@
       <v-col cols="12" md="8">
         <v-card class="hero-card" :style="heroBackgroundStyle" elevation="12">
           <v-card-text class="pa-8">
-            <div class="hero-chip">
-              <v-chip color="primary" dark label class="elevation-2">
-                <v-icon left>mdi-emoticon-happy-outline</v-icon>
-                {{ greetingMessage }}
-              </v-chip>
+            <div class="hero-greeting">
+              <v-icon left large class="mr-2">mdi-emoticon-happy-outline</v-icon>
+              <span>{{ greetingMessageWithName }}</span>
             </div>
             <div class="hero-content">
               <div class="hero-text">
@@ -102,11 +100,9 @@
       <v-col cols="12" md="4">
         <v-card class="wifi-card" elevation="12">
           <v-card-text class="py-8 px-6 text-center">
-            <div class="wifi-chip mb-4">
-              <v-chip color="white" class="primary--text" outlined>
-                <v-icon left color="primary">mdi-wifi</v-icon>
-                Wi-Fi Access
-              </v-chip>
+            <div class="wifi-heading mb-4">
+              <v-icon left color="white">mdi-wifi</v-icon>
+              <span>Wi-Fi Access</span>
             </div>
             <div v-if="wifiQRCode" class="wifi-qr-wrapper">
               <img :src="wifiQRCode" alt="WiFi QR Code" class="wifi-qr elevation-8" />
@@ -147,6 +143,25 @@
                 <v-icon left>mdi-lifebuoy</v-icon>
                 Report a Problem
               </v-btn>
+            </div>
+          </v-card-text>
+        </v-card>
+
+        <v-card class="mt-8 map-card" elevation="10">
+          <v-card-title class="section-title">
+            <v-icon left color="primary">mdi-map-search</v-icon>
+            Nearby Restaurants
+          </v-card-title>
+          <v-divider></v-divider>
+          <v-card-text class="pa-0">
+            <div class="map-frame-wrapper">
+              <iframe
+                :src="restaurantMapUrl"
+                class="map-frame"
+                allowfullscreen
+                loading="lazy"
+                referrerpolicy="no-referrer-when-downgrade"
+              ></iframe>
             </div>
           </v-card-text>
         </v-card>
@@ -481,6 +496,11 @@ export default {
       if (hour < 18) return 'Good afternoon'
       return 'Good evening'
     },
+    greetingMessageWithName () {
+      const base = this.greetingMessage
+      const name = (this.guestName && this.guestName.trim()) ? this.guestName.trim() : 'Guest'
+      return `${base} ${name}`
+    },
     formattedCheckIn () {
       if (this.booking && this.booking.check_in_date) {
         return this.formatDate(this.booking.check_in_date)
@@ -497,6 +517,15 @@ export default {
       return {
         background: this.heroBackgroundValue
       }
+    },
+    restaurantMapUrl () {
+      const baseQuery = this.propertyAddress
+        ? `restaurants near ${this.propertyAddress}`
+        : this.propertyName
+          ? `restaurants near ${this.propertyName}`
+          : 'restaurants'
+      const query = encodeURIComponent(baseQuery)
+      return `https://maps.google.com/maps?q=${query}&t=&z=13&ie=UTF8&iwloc=&output=embed`
     }
   },
   methods: {
@@ -628,9 +657,19 @@ export default {
   z-index: 1;
 }
 
-.hero-chip {
+.hero-greeting {
   display: flex;
-  justify-content: flex-start;
+  align-items: center;
+  font-size: 1.6rem;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0.04em;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.hero-greeting span {
+  word-break: break-word;
 }
 
 .hero-content {
@@ -739,9 +778,16 @@ export default {
   color: white;
 }
 
-.wifi-chip {
+.wifi-heading {
   display: flex;
   justify-content: center;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #ffffff;
 }
 
 .wifi-qr-wrapper {
@@ -791,6 +837,26 @@ export default {
 .fade-enter,
 .fade-leave-to {
   opacity: 0;
+}
+
+.map-card {
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+.map-frame-wrapper {
+  position: relative;
+  padding-top: 56.25%;
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.map-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 0 0 18px 18px;
 }
 
 @media (max-width: 960px) {
