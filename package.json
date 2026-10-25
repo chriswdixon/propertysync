@@ -7,25 +7,22 @@
     "build": "vue-cli-service build"
   },
   "dependencies": {
-    "@mdi/font": "^7.0.0",
-    "axios": "^1.6.0",
-    "core-js": "^3.32.0",
-    "qrcode": "^1.5.3",
-    "vue": "^3.5.39",
-    "vue-router": "^3.6.5",
-    "vuetify": "^4.1.2"
-  },
-  "overrides": {
-    "shell-quote": "^1.9.0"
+    "@mdi/font": "^7.4.47",
+    "axios": "^1.20.0",
+    "core-js": "^3.51.0",
+    "qrcode": "^1.5.4",
+    "vue": "^3.5.44",
+    "vue-router": "^5.4.0",
+    "vuetify": "^4.3.0"
   },
   "devDependencies": {
-    "@vue/cli-plugin-babel": "^3.12.1",
-    "@vue/cli-service": "^5.0.8",
+    "@vue/cli-plugin-babel": "^5.0.9",
+    "@vue/cli-service": "^5.0.9",
     "babel-eslint": "^10.1.0",
-    "sass": "^1.69.0",
-    "sass-loader": "^13.3.0",
-    "vue-cli-plugin-vuetify": "^2.0.9",
-    "vue-template-compiler": "^2.6.14",
-    "vuetify-loader": "^1.7.3"
+    "sass": "^1.106.1",
+    "sass-loader": "^17.0.1",
+    "vue-cli-plugin-vuetify": "^2.5.8",
+    "vue-template-compiler": "^2.7.16",
+    "vuetify-loader": "^1.9.2"
   }
 }
